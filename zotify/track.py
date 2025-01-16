@@ -163,6 +163,7 @@ def download_track(mode: str, track_id: str, extra_keys=None, disable_progressba
             output_template = output_template.replace("{"+k+"}", fix_filename(extra_keys[k]))
 
         ext = EXT_MAP.get(Zotify.CONFIG.get_download_format().lower())
+        assert ext is not None
 
         output_template = output_template.replace("{artist}", fix_filename(artists[0]))
         output_template = output_template.replace("{album}", fix_filename(album_name))
@@ -182,8 +183,7 @@ def download_track(mode: str, track_id: str, extra_keys=None, disable_progressba
             filename_temp = PurePath(Zotify.CONFIG.get_temp_download_dir()).joinpath(f'zotify_{str(uuid.uuid4())}_{track_id}.{ext}')
 
         check_name = Path(filename).is_file() and Path(filename).stat().st_size
-        check_id = scraped_song_id in get_directory_song_ids(filedir)
-        check_all_time = scraped_song_id in get_previously_downloaded()
+        check_id = scraped_song_id in get_directory_song_ids(filedir.as_posix())
 
         # a song with the same name is installed
         if not check_id and check_name:
@@ -211,9 +211,9 @@ def download_track(mode: str, track_id: str, extra_keys=None, disable_progressba
             else:
                 if check_id and check_name and Zotify.CONFIG.get_skip_existing():
                     prepare_download_loader.stop()
-                    Printer.print(PrintChannel.SKIPS, '\n###   SKIPPING: ' + song_name + ' (SONG ALREADY EXISTS)   ###' + "\n")
+                    Printer.print(PrintChannel.SKIPS, f"Skipping '{song_name}', the song already exists.")
 
-                elif check_all_time and Zotify.CONFIG.get_skip_previously_downloaded():
+                elif scraped_song_id in get_previously_downloaded() and Zotify.CONFIG.get_skip_previously_downloaded():
                     prepare_download_loader.stop()
                     Printer.print(PrintChannel.SKIPS, '\n###   SKIPPING: ' + song_name + ' (SONG ALREADY DOWNLOADED ONCE)   ###' + "\n")
 
@@ -254,7 +254,7 @@ def download_track(mode: str, track_id: str, extra_keys=None, disable_progressba
 
                     genres = get_song_genres(raw_artists, name)
 
-                    if(Zotify.CONFIG.get_download_lyrics()):
+                    if Zotify.CONFIG.get_download_lyrics():
                         try:
                             get_song_lyrics(track_id, PurePath(str(filename)[:-3] + "lrc"))
                         except ValueError:
@@ -298,6 +298,7 @@ def download_track(mode: str, track_id: str, extra_keys=None, disable_progressba
 
 def convert_audio_format(filename) -> None:
     """ Converts raw audio into playable file """
+
     temp_filename = f'{PurePath(filename).parent}.tmp'
     Path(filename).replace(temp_filename)
 
